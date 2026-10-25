@@ -1,3 +1,4 @@
+require "fileutils"
 require "find"
 
 module RailsVite
@@ -24,11 +25,28 @@ module RailsVite
       @mutex.synchronize do
         return unless stale?
 
-        # Build quietly: vite's per-build summary is noise on every auto-build
-        # (e.g. each local system-test run). Warnings and errors still stream.
-        Rails.logger.error("rails-vite: build failed") unless system(RailsVite::Tasks.build_env, "#{RailsVite::Tasks.build_command} --logLevel warn", chdir: Rails.root)
+        with_build_lock do
+          # Another process may have finished a build while this one waited.
+          return unless stale?
+
+          # Build quietly: vite's per-build summary is noise on every auto-build
+          # (e.g. each local system-test run). Warnings and errors still stream.
+          Rails.logger.error("rails-vite: build failed") unless system(RailsVite::Tasks.build_env, "#{RailsVite::Tasks.build_command} --logLevel warn", chdir: Rails.root)
+        end
         @cached_source_mtime = nil
         @source_mtime_checked_at = nil
+      end
+    end
+
+    # Serializes builds across processes (parallel test workers, a server
+    # beside a test run): Vite empties the build directory first, so the lock
+    # lives outside it.
+    def with_build_lock
+      path = Rails.root.join("tmp", "rails-vite-build-#{@config.build_dir}.lock")
+      FileUtils.mkdir_p(path.dirname)
+      File.open(path, File::RDWR | File::CREAT, 0o644) do |lock|
+        lock.flock(File::LOCK_EX)
+        yield lock
       end
     end
 

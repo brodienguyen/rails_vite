@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## Unreleased
+
+### Fixed
+
+- Auto builds hold a file lock in `tmp/`, so parallel test workers and a server beside a test run no longer build into the same directory at once. The first process to find stale assets builds them, and the others wait and reuse that build ([@brodienguyen])
+
 ## rails_vite@0.3.0 / rails-vite-plugin@0.3.0 - 2026-10-11
 
 ### Added

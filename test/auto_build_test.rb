@@ -1,5 +1,6 @@
 require "test_helper"
 require "rails_vite/auto_build"
+require "timeout"
 
 class AutoBuildTest < Minitest::Test
   def setup
@@ -195,6 +196,30 @@ class AutoBuildTest < Minitest::Test
     with_root do
       status, = RailsVite::AutoBuild.new(@app, @config).call({})
       assert_equal 200, status
+    end
+  end
+
+  def test_waits_for_a_build_in_another_process_and_skips_when_it_left_the_build_fresh
+    FileUtils.touch(File.join(@source_dir, "app.js"), mtime: Time.now - 10)
+    lock_path = File.join(@dir, "tmp", "rails-vite-build-#{@config.build_dir}.lock")
+    FileUtils.mkdir_p(File.dirname(lock_path))
+
+    with_root do
+      built = false
+      stub_build(-> { built = true }) do
+        File.open(lock_path, File::RDWR | File::CREAT) do |other_process|
+          other_process.flock(File::LOCK_EX)
+          request = Thread.new { RailsVite::AutoBuild.new(@app, @config).call({}) }
+          # The request blocks on the lock rather than finishing.
+          Timeout.timeout(5) { Thread.pass until request.status == "sleep" }
+          assert request.alive?, "the request should wait while another process builds"
+          write_manifest
+          other_process.flock(File::LOCK_UN)
+          request.join
+        end
+      end
+
+      refute built
     end
   end
 
