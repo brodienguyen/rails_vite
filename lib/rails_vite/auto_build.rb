@@ -6,6 +6,17 @@ module RailsVite
     NEVER = Time.at(0).freeze
     SOURCE_CHECK_INTERVAL = 2 # seconds
 
+    # Auto build runs when it is on and no dev server serves the assets.
+    def self.enabled?(config)
+      config.auto_build? && !config.dev_server_running?
+    end
+
+    # Builds stale assets outside a request, as the middleware does on the
+    # first one; for example, before a test runner starts its workers.
+    def self.build_if_stale(config = RailsVite.config)
+      new(nil, config).build_if_stale if enabled?(config)
+    end
+
     def initialize(app, config)
       @app = app
       @config = config
@@ -15,10 +26,16 @@ module RailsVite
     end
 
     def call(env)
-      # The event also spans waiting for another process's build, so a
-      # subscriber sees all the time a request spent on auto build.
-      ActiveSupport::Notifications.instrument("build.rails_vite") { build! } if stale?
+      build_if_stale
       @app.call(env)
+    end
+
+    # Builds the assets when a source is newer than the manifest, or waits for
+    # another process's build. Raises BuildError when the build fails.
+    def build_if_stale
+      # The event also spans waiting for another process's build, so a
+      # subscriber sees all the time a request or task spent on auto build.
+      ActiveSupport::Notifications.instrument("build.rails_vite") { build! } if stale?
     end
 
     private

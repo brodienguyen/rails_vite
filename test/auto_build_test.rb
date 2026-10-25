@@ -297,6 +297,65 @@ class AutoBuildTest < Minitest::Test
     end
   end
 
+  def test_build_if_stale_builds_without_a_request
+    with_root do
+      built = false
+      stub_build(-> { built = true }) do
+        RailsVite::AutoBuild.build_if_stale(@config)
+      end
+
+      assert built
+    end
+  end
+
+  def test_build_if_stale_skips_fresh_assets
+    FileUtils.touch(File.join(@source_dir, "app.js"), mtime: Time.now - 10)
+    write_manifest(mtime: Time.now)
+
+    with_root do
+      built = false
+      stub_build(-> { built = true }) do
+        RailsVite::AutoBuild.build_if_stale(@config)
+      end
+
+      refute built
+    end
+  end
+
+  def test_build_if_stale_skips_when_auto_build_is_off
+    @config.auto_build = false
+
+    with_root do
+      built = false
+      stub_build(-> { built = true }) do
+        RailsVite::AutoBuild.build_if_stale(@config)
+      end
+
+      refute built
+    end
+  end
+
+  def test_build_if_stale_skips_while_the_dev_server_runs
+    with_root do
+      built = false
+      @config.stub(:dev_server_running?, true) do
+        stub_build(-> { built = true }) do
+          RailsVite::AutoBuild.build_if_stale(@config)
+        end
+      end
+
+      refute built
+    end
+  end
+
+  def test_build_if_stale_raises_when_the_build_fails
+    with_root do
+      stub_build(-> { false }) do
+        assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.build_if_stale(@config) }
+      end
+    end
+  end
+
   private
 
   def with_root(&block)
