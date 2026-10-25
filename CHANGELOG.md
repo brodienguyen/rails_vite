@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## Unreleased
 
+### Added
+
+- Auto builds are instrumented as `build.rails_vite` with `ActiveSupport::Notifications`, including time spent waiting for another process's build ([@brodienguyen])
+
 ### Changed
 
 - A failed auto build raises `RailsVite::BuildError` instead of logging and serving the previous assets, and no process runs it again until a source changes or `rake vite:build` writes a fresh manifest ([@brodienguyen])

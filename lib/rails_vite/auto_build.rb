@@ -15,7 +15,9 @@ module RailsVite
     end
 
     def call(env)
-      build! if stale?
+      # The event also spans waiting for another process's build, so a
+      # subscriber sees all the time a request spent on auto build.
+      ActiveSupport::Notifications.instrument("build.rails_vite") { build! } if stale?
       @app.call(env)
     end
 

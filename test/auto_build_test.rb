@@ -223,6 +223,21 @@ class AutoBuildTest < Minitest::Test
     end
   end
 
+  def test_instruments_the_build
+    events = []
+    subscriber = ActiveSupport::Notifications.subscribe("build.rails_vite") { |event| events << event }
+
+    with_root do
+      stub_build(-> { true }) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+      write_manifest(mtime: Time.now + 10)
+      stub_build(-> { true }) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+    end
+
+    assert_equal 1, events.size
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   def test_does_not_rebuild_failed_sources_in_any_process_until_a_source_changes
     FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time)
 
