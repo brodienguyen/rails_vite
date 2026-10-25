@@ -32,7 +32,7 @@ module RailsVite
           return unless stale?
 
           sources = compute_latest_source_mtime.to_r.to_s
-          raise BuildError if lock.read == "failed #{sources}"
+          raise BuildError.new(skipped: true) if lock.read == "failed #{sources}"
 
           # Build quietly: vite's per-build summary is noise on every auto-build
           # (e.g. each local system-test run). Warnings and errors still stream.

@@ -264,6 +264,20 @@ class AutoBuildTest < Minitest::Test
     end
   end
 
+  def test_a_skipped_build_says_its_errors_are_not_in_the_output
+    FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time)
+
+    with_root do
+      stub_build(-> { false }) do
+        first = assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+        again = assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+
+        assert_includes first.message, "errors are in the output above"
+        assert_includes again.message, "Run `rake vite:build` to see its errors"
+      end
+    end
+  end
+
   def test_builds_again_after_a_failure_is_fixed
     FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time)
 
