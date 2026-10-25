@@ -12,6 +12,12 @@ module RailsVite
     end
   end
 
+  class BuildError < Error
+    def initialize
+      super("Vite auto build failed; its errors are in the output above. It retries once a source changes, or run `rake vite:build`.")
+    end
+  end
+
   class MissingEntryError < Error
     def initialize(name, path)
       super("Entry \"#{name}\" not found in Vite manifest at #{path}.")

@@ -223,6 +223,51 @@ class AutoBuildTest < Minitest::Test
     end
   end
 
+  def test_does_not_rebuild_failed_sources_in_any_process_until_a_source_changes
+    FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time)
+
+    with_root do
+      builds = 0
+      stub_build(-> {
+        builds += 1
+        false
+      }) do
+        # Each middleware instance stands for a separate process.
+        2.times do
+          assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+        end
+        assert_equal 1, builds
+
+        # A source change earns one more build, whose failure is remembered too.
+        FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time + 10)
+        2.times do
+          assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+        end
+      end
+
+      assert_equal 2, builds
+    end
+  end
+
+  def test_builds_again_after_a_failure_is_fixed
+    FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time)
+
+    with_root do
+      stub_build(-> { false }) do
+        assert_raises(RailsVite::BuildError) { RailsVite::AutoBuild.new(@app, @config).call({}) }
+      end
+
+      FileUtils.touch(File.join(@source_dir, "app.js"), mtime: @base_time + 10)
+      stub_build(-> {
+        write_manifest
+        true
+      }) do
+        status, = RailsVite::AutoBuild.new(@app, @config).call({})
+        assert_equal 200, status
+      end
+    end
+  end
+
   private
 
   def with_root(&block)
@@ -262,8 +307,8 @@ class AutoBuildTest < Minitest::Test
   def stub_build(callback)
     RailsVite::Tasks.stub(:build_command, "true") do
       RailsVite::AutoBuild.define_method(:system) do |*, **|
-        callback.call
-        true
+        # The build succeeds unless the callback returns false.
+        callback.call != false
       end
       yield
     ensure

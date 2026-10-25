@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## Unreleased
 
+### Changed
+
+- A failed auto build raises `RailsVite::BuildError` instead of logging and serving the previous assets, and no process runs it again until a source changes or `rake vite:build` writes a fresh manifest ([@brodienguyen])
+
 ### Fixed
 
 - Auto builds hold a file lock in `tmp/`, so parallel test workers and a server beside a test run no longer build into the same directory at once. The first process to find stale assets builds them, and the others wait and reuse that build ([@brodienguyen])

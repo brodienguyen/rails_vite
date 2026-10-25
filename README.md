@@ -374,7 +374,7 @@ Rails.application.config.rails_vite.auto_build = false
 
 By default, auto build is enabled in development and test (`Rails.env.local?`).
 
-Auto builds hold a file lock in `tmp/`, so parallel test workers and a server beside a test run never build at once: the first process to find stale assets builds them, and the others wait and reuse that build.
+Auto builds hold a file lock in `tmp/`, so parallel test workers and a server beside a test run never build at once: the first process to find stale assets builds them, and the others wait and reuse that build. A failed build raises `RailsVite::BuildError`, and no process retries it until a source changes.
 
 ## CDN
 
