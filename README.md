@@ -376,6 +376,14 @@ By default, auto build is enabled in development and test (`Rails.env.local?`).
 
 Auto builds hold a file lock in `tmp/`, so parallel test workers and a server beside a test run never build at once: the first process to find stale assets builds them, and the others wait and reuse that build. A failed build raises `RailsVite::BuildError`, and no process retries it until a source changes.
 
+A parallel test runner can build once before it starts its workers, so no worker spends its first test waiting for the build. `rake vite:auto_build` runs the same check, lock and build as the middleware: it builds only when sources changed, does nothing while the dev server runs or with auto build off, and fails with `RailsVite::BuildError` when the build fails. Run it in the environment the workers use:
+
+```bash
+RAILS_ENV=test bin/rails vite:auto_build && bundle exec parallel_rspec
+```
+
+From Ruby, for example in a script that starts the workers itself, call `RailsVite::AutoBuild.build_if_stale`.
+
 ## CDN
 
 Tags follow `config.action_controller.asset_host`. `rake vite:build` and auto builds also pass a string `asset_host` to the plugin in `RAILS_VITE_ASSET_HOST`, and the plugin prepends it to Vite's `base`, so chunks Vite loads at runtime (dynamic `import()` and their preloads) come from the same host. With a proc or `%d` `asset_host`, set `RAILS_VITE_ASSET_HOST` in the build's environment yourself (`.env` files are not read for it).
@@ -431,6 +439,7 @@ Defaults match the plugin defaults — no config needed if you follow convention
 | Task | Description |
 |------|-------------|
 | `rake vite:build` | Build assets for production |
+| `rake vite:auto_build` | Build assets only if sources changed, as [auto build](#auto-build) does |
 | `rake vite:install` | Install JavaScript dependencies |
 | `rake vite:clobber` | Remove `public/vite/` |
 
