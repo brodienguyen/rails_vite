@@ -16,3 +16,5 @@ gem "standard", "~> 1.3"
 gem "railties"
 
 gem "actionview"
+
+gem "benchmark"
